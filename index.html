@@ -1,11 +1,68 @@
-<script>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Portafolio de Ingeniería de Datos</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Prism.js para resaltar sintaxis -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-sql.min.js"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans">
+
+  <!-- Header -->
+  <header class="border-b border-slate-800 bg-slate-900/50 backdrop-blur sticky top-0 z-40">
+    <div class="max-w-6xl mx-auto px-6 py-5 flex justify-between items-center">
+      <div>
+        <h1 class="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
+          Repositorio de Proyectos
+        </h1>
+        <p class="text-xs text-slate-400">Ingeniería en Datos & Inteligencia Organizacional</p>
+      </div>
+      <div id="status-badge" class="text-xs px-3 py-1 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
+        Conectando...
+      </div>
+    </div>
+  </header>
+
+  <!-- Contenedor Principal -->
+  <main class="max-w-6xl mx-auto px-6 py-10">
+    <section>
+      <h2 class="text-xl font-semibold mb-6 flex items-center gap-2">
+        <span>📚</span> Biblioteca de Trabajos
+      </h2>
+      <div id="projects-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- Renderizado dinámico -->
+      </div>
+    </section>
+
+    <!-- Modal Detalle del Proyecto -->
+    <div id="project-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden overflow-y-auto p-4 md:p-8">
+      <div class="max-w-4xl mx-auto bg-slate-900 border border-slate-800 rounded-2xl p-6 md:p-8 shadow-2xl relative">
+        <button id="close-modal-btn" class="absolute top-6 right-6 text-slate-400 hover:text-white text-2xl font-bold">
+          &times;
+        </button>
+        <div id="modal-content">
+          <!-- Inyección dinámica -->
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- SCRIPT CON ES MODULES DIRECTOS -->
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
     // ==========================================
     // ⚙️ CONFIGURACIÓN DEL ALUMNO
     // ==========================================
-    const SUPABASE_URL = "https://zxfewnktqllujxkevdno.supabase.co/rest/v1/"; // Tu URL de Supabase
-    const SUPABASE_ANON_KEY = "sb_publishable_RtYUEOkqDZP3XfU4itqnMQ_ny4ucrCf";              // Tu anon public key
+    const SUPABASE_URL = "https://zxfewnktqllujxkevdno.supabase.co/rest/v1/";
+    const SUPABASE_ANON_KEY = "sb_publishable_RtYUEOkqDZP3XfU4itqnMQ_ny4ucrCf"; // <-- Tu anon public key
 
-    const { createClient } = window.supabase;
     const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     let allProjects = [];
 
@@ -43,7 +100,7 @@
           .join('');
 
         return `
-          <div class="bg-slate-900 border border-slate-800 hover:border-cyan-500/50 transition-all rounded-xl p-6 flex flex-col justify-between cursor-pointer group shadow-lg" onclick="openModal(${p.id})">
+          <div class="bg-slate-900 border border-slate-800 hover:border-cyan-500/50 transition-all rounded-xl p-6 flex flex-col justify-between cursor-pointer group shadow-lg" data-project-id="${p.id}">
             <div>
               <div class="flex flex-wrap gap-1.5 mb-3">${tagsHtml}</div>
               <h3 class="text-lg font-bold group-hover:text-cyan-400 transition-colors mb-2">${escapeHtml(p.title)}</h3>
@@ -55,18 +112,24 @@
           </div>
         `;
       }).join('');
+
+      // Event listener para las tarjetas
+      grid.querySelectorAll('[data-project-id]').forEach(card => {
+        card.addEventListener('click', () => {
+          const id = Number(card.getAttribute('data-project-id'));
+          openModal(id);
+        });
+      });
     }
 
     function openModal(id) {
       const p = allProjects.find(item => item.id === id);
       if (!p) return;
 
-      // 1. Tags
       const tagsHtml = (p.tags || [])
         .map(t => `<span class="text-xs font-semibold px-2.5 py-1 rounded bg-slate-800 text-cyan-400">${escapeHtml(t)}</span>`)
         .join('');
 
-      // 2. Gráficos (procesados por separado para evitar error de sintaxis)
       let chartsHtml = '';
       if (p.charts_urls && p.charts_urls.length > 0) {
         const imagesList = p.charts_urls
@@ -84,7 +147,6 @@
         `;
       }
 
-      // 3. Código
       let codeHtml = '';
       if (p.code_snippet) {
         codeHtml = `
@@ -95,12 +157,11 @@
         `;
       }
 
-      // 4. Dataset
       let datasetHtml = '';
       if (p.dataset_url) {
         datasetHtml = `
           <div class="pt-4 border-t border-slate-800 flex justify-between items-center">
-            <span class="text-xs text-slate-400">Dataset utilizado para este análisis:</span>
+            <span class="text-xs text-slate-400">Dataset utilizado:</span>
             <a href="${p.dataset_url}" target="_blank" download class="inline-flex items-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors">
               <span>📥</span> Descargar Dataset
             </a>
@@ -108,7 +169,6 @@
         `;
       }
 
-      // Inyección al modal
       const modalContent = document.getElementById('modal-content');
       modalContent.innerHTML = `
         <div class="space-y-6">
@@ -147,11 +207,13 @@
         .replace(/'/g, "&#039;");
     }
 
-    window.onclick = function(e) {
+    document.getElementById('close-modal-btn').addEventListener('click', closeModal);
+    window.addEventListener('click', (e) => {
       const modal = document.getElementById('project-modal');
       if (e.target === modal) closeModal();
-    };
+    });
 
-    // Iniciar carga
     loadProjects();
   </script>
+</body>
+</html>
